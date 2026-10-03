@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Deep Research Agent 项目功能架构：多智能体研究、自进化评估与红队反馈驱动的报告生成。">
+<title>Deep Research Agent · 项目架构</title>
+<style>
+:root{color-scheme:light;--ink:#18364a;--muted:#657d8d;--teal:#147d73;--line:#dce6eb}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f7;color:var(--ink);font-family:"Microsoft YaHei","PingFang SC",sans-serif}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,[data-module]:focus-visible{outline:3px solid #268d81;outline-offset:4px}header{min-height:72px;padding:16px 32px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700}.brand-mark{display:grid;place-items:center;width:32px;height:32px;background:#193d53;border-radius:9px;color:#b8ead8;font-size:19px}.brand small{font-weight:400;font-size:12px;letter-spacing:2px;color:var(--muted);margin-left:10px}.actions{display:flex;gap:8px;flex-wrap:wrap}.button{border:1px solid #d6e2e7;background:#fff;color:#294b5e;border-radius:8px;min-height:36px;padding:7px 14px;font-size:13px}.button:hover{background:#eff5f6}.button.primary{background:#183e52;color:#fff;border-color:#183e52}.button.primary:hover{background:#24536a}main{max-width:1920px;margin:auto;padding:16px 24px 32px}.viewer{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#f9fbfc;box-shadow:0 10px 36px #1c3e5008}.toolbar{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid #e5edf1;background:#fff}.toolbar-note{font-size:12px;color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}.zoom-controls button{padding:4px 10px;min-height:29px;font-size:12px}.zoom-controls output{min-width:46px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;color:#5c7685}#viewport{height:calc(100svh - 158px);min-height:430px;overflow:auto;overscroll-behavior:contain;scrollbar-color:#b9cbd4 #edf2f5}#stage{width:max-content;min-width:100%;min-height:100%;display:flex;align-items:center;justify-content:center}#stage>svg{display:block;flex-shrink:0;height:auto}#stage [data-module]{cursor:pointer}#stage [data-module]:hover .module-outline{stroke:#53a998;stroke-width:2.5}#stage [data-module].selected .module-outline{stroke:#138b79;stroke-width:3.2}#viewer:fullscreen{border:none;border-radius:0}#viewer:fullscreen #viewport{height:calc(100svh - 52px)}.detail-area{margin-top:20px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 28px}.module-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}.module-nav button{border:1px solid #dce6eb;border-radius:30px;background:#fff;padding:8px 14px;color:#607c8c;font-size:13px;min-height:36px}.module-nav button[aria-pressed="true"]{color:#fff;background:#224d60;border-color:#224d60}.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,320px);gap:40px}h1{font-size:21px;font-weight:600;margin:0 0 13px}#detail-body{font-size:14px;line-height:1.9;max-width:920px;margin:0;color:#5d7484}.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.tag{background:#edf5f2;color:#478070;padding:5px 10px;border-radius:5px;font-size:12px}.talk-track{border-left:2px solid #c9ddd9;padding:2px 0 0 22px;color:#5a7584;font-size:13px;line-height:1.85}.talk-track strong{display:block;color:#345c6c;margin-bottom:7px;font-weight:600}.talk-track p{margin:0}details{margin-top:24px;border-top:1px solid #e5ecef;padding-top:16px;color:#748995;font-size:12px;line-height:1.9}summary{cursor:pointer;width:fit-content;color:#5d7988}details p{margin:10px 0 0}#detail-source{overflow-wrap:anywhere}footer{display:flex;justify-content:space-between;gap:12px;padding:20px 4px 0;font-size:11px;color:#8396a1;flex-wrap:wrap}.mobile-note{display:none}#notice{color:#346d61;font-size:12px;min-height:16px;margin-top:8px} @media(max-width:760px){header{padding:12px 16px;flex-wrap:wrap}.brand small{display:none}.brand{font-size:15px}.button{min-height:40px}main{padding:12px 10px 24px}.toolbar{padding:10px;flex-wrap:wrap}.toolbar-note{display:none}.mobile-note{display:inline;font-size:11px;color:#7a8e99}.zoom-controls{gap:3px}.zoom-controls button{min-height:36px;padding:5px 8px}#viewport{height:58svh;min-height:400px}.detail-area{padding:20px 17px}.detail-grid{grid-template-columns:1fr;gap:23px}.module-nav{gap:6px}.module-nav button{font-size:12px;padding:7px 10px;min-height:38px}h1{font-size:18px}.talk-track{padding-left:16px}footer{line-height:1.8}}@media print{@page{size:A3 landscape;margin:8mm}body,main{background:white;margin:0;padding:0}header,.toolbar,.detail-area,footer{display:none}.viewer{border:0;box-shadow:none}#viewport{height:auto!important;min-height:0;overflow:visible}#stage{width:100%;display:block;min-height:0}#stage>svg{width:100%!important;height:auto!important}}
+</style>
+</head>
+<body>
+<header><div class="brand"><span class="brand-mark" aria-hidden="true">研</span>Deep Research Agent <small>项目功能架构</small></div><div class="actions"><button type="button" class="button" id="fullscreen">全屏展示</button><button type="button" class="button primary" id="download">下载 SVG</button></div></header>
+<main>
+<section class="viewer" id="viewer" aria-label="项目架构图">
+<div class="toolbar"><span class="toolbar-note">点击图中模块，查看功能介绍与讲解要点</span><span class="mobile-note">可横向滚动查看全图</span><div class="zoom-controls"><button type="button" class="button" id="zoom-out" aria-label="缩小架构图">−</button><output id="zoom-level" aria-live="polite">100%</output><button type="button" class="button" id="zoom-in" aria-label="放大架构图">＋</button><button type="button" class="button" id="fit">适应窗口</button><button type="button" class="button" id="actual">原始尺寸</button></div></div>
+<div id="viewport" tabindex="0" aria-label="架构图查看区域，可滚动"><div id="stage"><svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="architecture-title architecture-description">
+<title id="architecture-title">Deep Research Agent 项目功能架构图</title>
+<desc id="architecture-description">研究需求先转化为研究简报与报告初稿。研究主管调度多个子主题研究，调用联网搜索、去重和摘要能力，压缩并汇总研究笔记。主管按需修订草稿，依次进行质量评分和红队审阅，反馈进入下一轮研究。当研究结束后，综合研究发现与当前草稿生成带来源引用的报告。底层提供模型、联网搜索、研究上下文和过程管理能力。</desc>
+<defs>
+  <linearGradient id="page-wash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FBFCFE"/><stop offset="1" stop-color="#F0F5F7"/></linearGradient>
+  <linearGradient id="navy-wash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#193D53"/><stop offset="1" stop-color="#102B40"/></linearGradient>
+  <linearGradient id="teal-wash" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#E7F5F0"/><stop offset="1" stop-color="#F4F9F6"/></linearGradient>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#8499AA" stroke-width="1.6"/></marker>
+  <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#168A80" stroke-width="1.6"/></marker>
+  <filter id="soft-shadow" x="-10%" y="-15%" width="120%" height="140%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#18394C" flood-opacity="0.055"/></filter>
+</defs>
+<style>text{font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif} .module-outline{stroke-width:1.3}</style>
+
+<rect x="0" y="0" width="1800" height="1120" rx="0" fill="url(#page-wash)" stroke="none" />
+<rect x="64" y="47" width="34" height="7" rx="3" fill="#178C80" stroke="none" />
+<text x="112" y="58" font-size="17" fill="#526D80" font-weight="600" letter-spacing="2">DEEP RESEARCH / FUNCTIONAL ARCHITECTURE</text>
+<text x="64" y="118" font-size="42" fill="#142F43" font-weight="700" >从一个研究问题，到一份有据可循的报告</text>
+<text x="64" y="162" font-size="23" fill="#2A5062" font-weight="600" >Deep Research Agent</text>
+<text x="325" y="162" font-size="23" fill="#647D8C" font-weight="400" >多智能体协作 · 自进化评估 · 对抗式降噪</text>
+<rect x="1442" y="102" width="130" height="32" rx="16" fill="#EAF4F2" stroke="none" />
+<text x="1507.0" y="124" font-size="18" fill="#167A71" font-weight="500" text-anchor="middle">多主题研究</text>
+<rect x="1586" y="102" width="150" height="32" rx="16" fill="#EAF4F2" stroke="none" />
+<text x="1661.0" y="124" font-size="18" fill="#167A71" font-weight="500" text-anchor="middle">反馈驱动改进</text>
+<rect x="64" y="222" width="274" height="654" rx="22" fill="#EEF2F6" stroke="#DFE7EC" />
+<rect x="374" y="222" width="1030" height="654" rx="22" fill="#FFFFFF" stroke="#DCE6EB" filter="url(#soft-shadow)"/>
+<rect x="1440" y="222" width="296" height="654" rx="22" fill="#EAF0F4" stroke="#DCE6EB" />
+<text x="88" y="269" font-size="18" fill="#7C929F" font-weight="600" >01</text>
+<text x="125" y="269" font-size="24" fill="#213E50" font-weight="600" >需求与研究准备</text>
+<text x="414" y="269" font-size="18" fill="#7C929F" font-weight="600" >02</text>
+<text x="451" y="269" font-size="24" fill="#213E50" font-weight="600" >研究与改进引擎</text>
+<text x="1464" y="269" font-size="18" fill="#7C929F" font-weight="600" >03</text>
+<text x="1501" y="269" font-size="24" fill="#213E50" font-weight="600" >研究成果交付</text>
+<rect x="1178" y="244" width="186" height="32" rx="16" fill="#F0F7F4" stroke="none" />
+<text x="1271.0" y="266" font-size="18" fill="#18776C" font-weight="500" text-anchor="middle">任务内迭代改进</text>
+<g data-module="prepare">
+<rect x="88" y="308" width="226" height="130" rx="14" fill="#FFFFFF" stroke="#DCE5EA" class="module-outline"/>
+<rect x="88" y="492" width="226" height="130" rx="14" fill="#FFFFFF" stroke="#DCE5EA" class="module-outline"/>
+<rect x="88" y="676" width="226" height="130" rx="14" fill="#FFFFFF" stroke="#DCE5EA" class="module-outline"/>
+<text x="108" y="342" font-size="25" fill="#243D50" font-weight="600" >研究需求</text>
+<text x="108" y="378" font-size="19" fill="#657C8B" font-weight="400" >自然语言描述问题</text>
+<text x="108" y="408" font-size="19" fill="#657C8B" font-weight="400" >目标 · 范围 · 关注点</text>
+<text x="108" y="526" font-size="25" fill="#243D50" font-weight="600" >研究简报</text>
+<text x="108" y="562" font-size="19" fill="#657C8B" font-weight="400" >明确研究范围</text>
+<text x="108" y="592" font-size="19" fill="#657C8B" font-weight="400" >整理需要回答的问题</text>
+<text x="108" y="710" font-size="25" fill="#243D50" font-weight="600" >报告初稿</text>
+<text x="108" y="746" font-size="19" fill="#657C8B" font-weight="400" >建立初始内容框架</text>
+<text x="108" y="776" font-size="19" fill="#657C8B" font-weight="400" >作为后续修订起点</text>
+</g>
+<path d="M201 438 V484" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M201 622 V668" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M314 741 H347 Q356 741 356 732 V361 Q356 352 365 352 H406" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="201" y="845" font-size="17" fill="#6C8391" font-weight="400" text-anchor="middle">先建框架，再用证据完善</text>
+<g data-module="supervisor">
+<rect x="414" y="308" width="950" height="88" rx="16" fill="url(#navy-wash)" stroke="none" class="module-outline"/>
+<rect x="438" y="330" width="40" height="40" rx="11" fill="#31586C" stroke="none" />
+<text x="458" y="357" font-size="22" fill="#E0F7EE" font-weight="600" text-anchor="middle">研</text>
+<text x="494" y="344" font-size="27" fill="#FFFFFF" font-weight="600" >研究主管</text>
+<text x="494" y="375" font-size="18" fill="#BAD0DB" font-weight="400" >统筹研究方向与下一步行动</text>
+<text x="843" y="360" font-size="22" fill="#E5F1F5" font-weight="500" >拆解主题</text>
+<text x="1013" y="360" font-size="22" fill="#E5F1F5" font-weight="500" >调度研究</text>
+<text x="1183" y="360" font-size="22" fill="#E5F1F5" font-weight="500" >判断完成</text>
+</g>
+<path d="M624 396 V440" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M1139 396 V440" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<g data-module="research">
+<rect x="414" y="448" width="420" height="264" rx="16" fill="#F4F8FB" stroke="#DCE7EE" class="module-outline"/>
+<text x="438" y="485" font-size="26" fill="#27465B" font-weight="600" >多主题研究</text>
+<text x="810" y="485" font-size="17" fill="#678496" font-weight="400" text-anchor="end">按需并行</text>
+<rect x="438" y="505" width="116" height="43" rx="9" fill="#E5EEF5" stroke="none" />
+<text x="496" y="533" font-size="17" fill="#395B72" font-weight="500" text-anchor="middle">研究主题 A</text>
+<rect x="566" y="505" width="116" height="43" rx="9" fill="#E5EEF5" stroke="none" />
+<text x="624" y="533" font-size="17" fill="#395B72" font-weight="500" text-anchor="middle">研究主题 B</text>
+<rect x="694" y="505" width="116" height="43" rx="9" fill="#E5EEF5" stroke="none" />
+<text x="752" y="533" font-size="17" fill="#395B72" font-weight="500" text-anchor="middle">研究主题 …</text>
+<path d="M624 548 V570" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="438" y="578" width="372" height="48" rx="9" fill="#FFFFFF" stroke="#DCE7EE" />
+<text x="624" y="609" font-size="20" fill="#436274" font-weight="500" text-anchor="middle">联网检索 → 去重 → 网页摘要</text>
+<path d="M624 626 V648" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="624" y="683" font-size="20" fill="#436274" font-weight="500" text-anchor="middle">压缩研究笔记 · 保留来源链接</text>
+</g>
+<path d="M834 490 H906" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="851" y="478" font-size="16" fill="#718694" font-weight="400" text-anchor="middle">发现</text>
+<g data-module="refine">
+<rect x="914" y="448" width="450" height="84" rx="14" fill="url(#teal-wash)" stroke="#D2E9DF" class="module-outline"/>
+<text x="938" y="483" font-size="26" fill="#256A5E" font-weight="600" >草稿修订</text>
+<text x="938" y="513" font-size="19" fill="#537C73" font-weight="400" >结合新证据，补齐缺口、修正内容</text>
+</g>
+<path d="M1015 532 V570" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<g data-module="evaluate">
+<rect x="914" y="578" width="202" height="134" rx="14" fill="#F0F7F3" stroke="#D5E7DC" class="module-outline"/>
+<text x="936" y="614" font-size="24" fill="#2D6657" font-weight="600" >质量评估</text>
+<text x="936" y="650" font-size="18" fill="#547D6E" font-weight="400" >全面性 · 准确性</text>
+<text x="936" y="680" font-size="18" fill="#547D6E" font-weight="400" >连贯性 · 改进建议</text>
+</g>
+<path d="M1116 645 H1140" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<g data-module="redteam">
+<rect x="1148" y="578" width="216" height="134" rx="14" fill="#FCF4E9" stroke="#EEDFCC" class="module-outline"/>
+<text x="1170" y="614" font-size="24" fill="#986126" font-weight="600" >红队审阅</text>
+<text x="1170" y="650" font-size="18" fill="#95744D" font-weight="400" >检查遗漏与偏题</text>
+<text x="1170" y="680" font-size="18" fill="#95744D" font-weight="400" >质疑矛盾与逻辑缺陷</text>
+</g>
+<path d="M1256 712 V754 Q1256 772 1238 772 H891 Q873 772 873 754 V404" fill="none" stroke="#168A80" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 7" marker-end="url(#arrow-teal)"/>
+<text x="1058" y="812" font-size="20" fill="#167A71" font-weight="500" text-anchor="middle">评分与质疑回流，驱动下一轮研究</text>
+<text x="438" y="761" font-size="19" fill="#526E80" font-weight="500" >持续获取信息</text>
+<text x="438" y="794" font-size="19" fill="#526E80" font-weight="500" >持续完善报告</text>
+<text x="889" y="848" font-size="17" fill="#7A8F9C" font-weight="400" text-anchor="middle">研究完成或达到迭代上限后，进入最终报告生成</text>
+<path d="M1364 352 H1456" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1414" y="337" font-size="16" fill="#6C8391" font-weight="400" text-anchor="middle">结束研究</text>
+<g data-module="report">
+<rect x="1464" y="308" width="248" height="478" rx="17" fill="url(#navy-wash)" stroke="none" class="module-outline"/>
+<text x="1488" y="395" font-size="27" fill="#FFFFFF" font-weight="600" >最终研究报告</text>
+<text x="1488" y="430" font-size="17" fill="#C0D2DE" font-weight="400" >综合研究发现与当前草稿</text>
+<rect x="1488" y="456" width="200" height="106" rx="10" fill="#26495F" stroke="none" />
+<text x="1507" y="485" font-size="19" fill="#E8F1F6" font-weight="500" >研究结论</text>
+<rect x="1507" y="502" width="137" height="5" rx="2" fill="#86A8B9" stroke="none" />
+<rect x="1507" y="517" width="158" height="5" rx="2" fill="#638CA0" stroke="none" />
+<rect x="1507" y="532" width="100" height="5" rx="2" fill="#638CA0" stroke="none" />
+<circle cx="1495" cy="597" r="4" fill="#79CAB4"/>
+<text x="1511" y="604" font-size="19" fill="#DFEBF0" font-weight="400" >结构化章节</text>
+<circle cx="1495" cy="643" r="4" fill="#79CAB4"/>
+<text x="1511" y="650" font-size="19" fill="#DFEBF0" font-weight="400" >多维分析与结论</text>
+<circle cx="1495" cy="689" r="4" fill="#79CAB4"/>
+<text x="1511" y="696" font-size="19" fill="#DFEBF0" font-weight="400" >来源引用与参考资料</text>
+<text x="1588" y="752" font-size="17" fill="#AAC4D3" font-weight="400" text-anchor="middle">与用户输入语言一致</text>
+</g>
+<text x="1588" y="829" font-size="17" fill="#567588" font-weight="400" text-anchor="middle">Markdown · 可保存与分享</text>
+<text x="64" y="910" font-size="18" fill="#5D7687" font-weight="500" >贯穿研究全流程的能力支撑</text>
+<g data-module="foundation">
+<rect x="64" y="926" width="1672" height="116" rx="18" fill="#FFFFFF" stroke="#DAE5EB" class="module-outline"/>
+<rect x="92" y="950" width="5" height="53" rx="2" fill="#A8C7CE" stroke="none" />
+<text x="114" y="973" font-size="23" fill="#2A495D" font-weight="600" >模型能力</text>
+<text x="114" y="1009" font-size="18" fill="#68808F" font-weight="400" >按角色配置，支撑研究与写作</text>
+<rect x="508" y="950" width="5" height="53" rx="2" fill="#A8C7CE" stroke="none" />
+<text x="530" y="973" font-size="23" fill="#2A495D" font-weight="600" >联网搜索</text>
+<text x="530" y="1009" font-size="18" fill="#68808F" font-weight="400" >获取外部网页与来源信息</text>
+<rect x="924" y="950" width="5" height="53" rx="2" fill="#A8C7CE" stroke="none" />
+<text x="946" y="973" font-size="23" fill="#2A495D" font-weight="600" >研究上下文</text>
+<text x="946" y="1009" font-size="18" fill="#68808F" font-weight="400" >串联简报、笔记、草稿与反馈</text>
+<rect x="1340" y="950" width="5" height="53" rx="2" fill="#A8C7CE" stroke="none" />
+<text x="1362" y="973" font-size="23" fill="#2A495D" font-weight="600" >过程管理</text>
+<text x="1362" y="1009" font-size="18" fill="#68808F" font-weight="400" >保留评分记录、日志与迭代预算</text>
+</g>
+<path d="M65 1080 H108" fill="none" stroke="#8499AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="121" y="1086" font-size="16" fill="#738997" font-weight="400" >研究流程</text>
+<path d="M247 1080 H294" fill="none" stroke="#168A80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 7" marker-end="url(#arrow-teal)"/>
+<text x="307" y="1086" font-size="16" fill="#738997" font-weight="400" >改进反馈</text>
+<text x="1736" y="1086" font-size="16" fill="#8296A2" font-weight="400" text-anchor="end">基于当前项目实现 · 功能介绍视图 · 2026.10</text>
+</svg></div></div>
+</section>
+<section class="detail-area" aria-label="模块功能介绍">
+<nav class="module-nav" aria-label="选择架构模块"><button type="button" data-select="overview" aria-pressed="false">整体概览</button><button type="button" data-select="prepare" aria-pressed="false">需求准备</button><button type="button" data-select="supervisor" aria-pressed="false">研究主管</button><button type="button" data-select="research" aria-pressed="false">多主题研究</button><button type="button" data-select="refine" aria-pressed="false">草稿修订</button><button type="button" data-select="evaluate" aria-pressed="false">质量评估</button><button type="button" data-select="redteam" aria-pressed="false">红队审阅</button><button type="button" data-select="report" aria-pressed="false">报告交付</button><button type="button" data-select="foundation" aria-pressed="false">能力支撑</button></nav>
+<div class="detail-grid"><div aria-live="polite"><h1 id="detail-title"></h1><p id="detail-body"></p><div class="tags" id="detail-tags"></div></div><aside class="talk-track"><strong>一分钟介绍本项目</strong><p>输入一个研究问题，系统组织多个研究角色收集信息；再用质量评分和红队质疑推动报告改进，最终交付一份结构清晰、带来源引用的研究报告。</p></aside></div>
+<details><summary>查看实现依据与范围说明</summary><p id="detail-source"></p><p>依据当前目录中的主流程、智能体、搜索工具、状态定义和提示词整理；本页为功能架构展示，不连接模型或搜索服务。</p><p>“自进化”表示当前任务中的报告迭代；“降噪”表示检索、摘要与修订过程中的信息精炼。质量评分和红队审阅由草稿修订触发，不是每次搜索后都必经的步骤，也不是最终报告的强制验收门槛。</p><p>模型配置目前走 OpenAI 兼容接口，默认检索后端为 Tavily；自定义搜索文件仅为扩展示例。主入口是 Notebook，图中未将独立产品界面、私有知识库或跨任务学习列为已有能力。</p></details>
+<div id="notice" role="status"></div>
+</section>
+<footer><span>Deep Research Agent · 项目介绍资料</span><span>SVG 矢量图与本页面内容一致 · 单文件离线可用 · 2026.10</span></footer>
+</main>
+<script>
+'use strict';
+const moduleDetails={"overview": {"title": "以研究为主线，以反馈推动改进", "body": "从自然语言需求出发，先建立研究简报与报告初稿，再围绕信息缺口开展多主题研究。研究主管结合证据、质量评分和红队意见持续完善草稿，最后生成带来源引用的研究报告。", "tags": ["需求驱动", "多智能体协作", "任务内迭代", "来源引用"]}, "prepare": {"title": "需求准备：把问题变成研究任务", "body": "将用户消息整理为研究简报，明确需要覆盖的主题和范围，并生成初始报告草稿。初稿用于提供后续修订的起点，内容会在研究过程中逐步补充与修正。", "tags": ["自然语言输入", "研究简报", "报告初稿"], "source": "agents/draft_agent.py · write_research_brief / write_draft_report"}, "supervisor": {"title": "研究主管：决定下一步研究什么", "body": "围绕简报与当前草稿识别信息缺口，委派子主题研究、汇总研究发现，并决定是否修订草稿或结束研究。评分与红队意见会回到主管的上下文，用于指导后续行动。", "tags": ["任务拆解", "按需调度", "研究完成判断"], "source": "agents/supervisor.py · supervisor / supervisor_tools"}, "research": {"title": "多主题研究：从网页信息中提炼发现", "body": "每个子研究智能体围绕独立主题反复检索和分析。搜索结果按 URL 去重，网页正文生成摘要，研究结束后压缩为带来源信息的研究笔记。主管可以同时委派多个子主题。", "tags": ["独立主题上下文", "联网搜索", "去重与摘要", "笔记压缩"], "source": "agents/research_agent.py · tools/tool.py"}, "refine": {"title": "草稿修订：用新证据逐步完善报告", "body": "写作角色结合研究简报、已有研究发现和当前草稿生成更新版本。项目中的“降噪”指通过补充证据、修订内容来减少报告的不完整与不精确之处。", "tags": ["证据补充", "内容修订", "渐进完善"], "source": "tools/tool.py · refine_draft_report"}, "evaluate": {"title": "质量评估：让改进有明确的反馈", "body": "评估角色从全面性、准确性、连贯性三个维度对修订稿打分，返回原因与建议，记录质量历史；低分会触发后续修复提醒。这里的“自进化”体现为当前任务中的报告改进。", "tags": ["多维评分", "改进建议", "质量历史"], "source": "agents/evaluator_agent.py · agents/supervisor.py"}, "redteam": {"title": "红队审阅：从反对视角寻找缺口", "body": "修订稿经过质量评估后进入红队审阅。红队检查覆盖不足、偏题、矛盾和逻辑缺陷，提出关键且可操作的质疑；这些意见注入主管上下文，促使进一步研究与修订。", "tags": ["对抗审阅", "逻辑检查", "反馈回流"], "source": "agents/red_team_agent.py · prompts/red_team.py"}, "report": {"title": "报告交付：综合证据，形成完整叙述", "body": "研究阶段结束后，独立的写作步骤结合研究简报、汇总发现与当前草稿生成最终报告。输出使用 Markdown，提示词要求结构化章节、分析结论、来源引用及参考资料，并与用户输入语言一致。", "tags": ["最终综合", "结构化报告", "来源引用", "Markdown"], "source": "agent_builder.py · final_report_generation / prompts/final_report.py"}, "foundation": {"title": "能力支撑：让各研究角色协同工作", "body": "模型按角色统一配置，搜索层连接外部网页，任务状态保留简报、研究笔记、草稿、评分和审阅意见。日志与迭代预算支持过程追踪；Notebook 示例提供内存中的会话检查点。", "tags": ["角色模型配置", "搜索能力", "任务状态", "日志与迭代管理"], "source": "llm.py · tools/search_factory.py · states/ · logging.py · run.ipynb"}};
+const svg=document.querySelector('#stage>svg');
+const originalSvg=new XMLSerializer().serializeToString(svg);
+const viewport=document.getElementById('viewport');
+let zoom=1,fitMode=true;
+function setZoom(value){zoom=Math.max(.15,Math.min(2.5,value));svg.style.width=(1800*zoom)+'px';svg.style.height=(1120*zoom)+'px';document.getElementById('zoom-level').value=Math.round(zoom*100)+'%';}
+function fit(){fitMode=true;setZoom(Math.min((viewport.clientWidth-12)/1800,(viewport.clientHeight-12)/1120));viewport.scrollTop=0;viewport.scrollLeft=0;}
+function selectModule(key){const item=moduleDetails[key];if(!item)return;document.getElementById('detail-title').textContent=item.title;document.getElementById('detail-body').textContent=item.body;document.getElementById('detail-source').textContent='对应代码：'+(item.source||'agent_builder.py · agents/ · tools/ · states/（均位于 deep_research/ 下，另见 run.ipynb）');const tags=document.getElementById('detail-tags');tags.replaceChildren(...item.tags.map(t=>{const el=document.createElement('span');el.className='tag';el.textContent=t;return el;}));document.querySelectorAll('[data-select]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.select===key)));svg.querySelectorAll('[data-module]').forEach(el=>{el.classList.toggle('selected',el.dataset.module===key);el.setAttribute('aria-pressed',String(el.dataset.module===key));});}
+document.querySelectorAll('[data-select]').forEach(el=>el.addEventListener('click',()=>selectModule(el.dataset.select)));
+svg.querySelectorAll('[data-module]').forEach(el=>{el.setAttribute('tabindex','0');el.setAttribute('role','button');el.setAttribute('aria-label',moduleDetails[el.dataset.module].title);el.addEventListener('click',()=>selectModule(el.dataset.module));el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectModule(el.dataset.module);}});});
+document.getElementById('zoom-in').addEventListener('click',()=>{fitMode=false;setZoom(zoom*1.2);});
+document.getElementById('zoom-out').addEventListener('click',()=>{fitMode=false;setZoom(zoom/1.2);});
+document.getElementById('fit').addEventListener('click',fit);
+document.getElementById('actual').addEventListener('click',()=>{fitMode=false;setZoom(1);});
+const notice=document.getElementById('notice');
+document.getElementById('download').addEventListener('click',()=>{const blob=new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n'+originalSvg],{type:'image/svg+xml;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='deep-research-architecture.svg';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);notice.textContent='已生成 SVG 下载文件，可用于文档、PPT 或印刷。';});
+document.getElementById('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.getElementById('viewer').requestFullscreen();}}catch{notice.textContent='当前浏览器不支持页面全屏，可使用浏览器自带全屏功能。';}});
+document.addEventListener('fullscreenchange',()=>{document.getElementById('fullscreen').textContent=document.fullscreenElement?'退出全屏':'全屏展示';if(fitMode)fit();});
+new ResizeObserver(()=>{if(fitMode)fit();}).observe(viewport);
+selectModule('overview');
+if(window.innerWidth<=760){fitMode=false;setZoom(.65);}else{fit();}
+</script>
+</body>
+</html>
