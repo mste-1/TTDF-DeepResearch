@@ -1,9 +1,10 @@
+# Copy this file to config.yml and fill in your API keys locally.
 stages:
   prod:
     cognition:
       openai:
         base_url: https://api.deepseek.com
-        api_key: sk-xx
+        api_key: YOUR_DEEPSEEK_API_KEY
         organization: MSTE
         default_model: deepseek-flash
         model_provider: deepseek
@@ -18,7 +19,7 @@ stages:
     search:
       backend: tavily
       tavily:
-        api_key: tvly-dev-xx
+        api_key: YOUR_TAVILY_API_KEY
         base_url: https://api.tavily.com
         max_results: 3
         topic: general
