@@ -18,6 +18,7 @@ from deep_research.utils import get_today_str
 from deep_research.tools import _tavily_search_tool, _think_tool
 from deep_research.prompts import RESEARCH_AGENT_PROMPT, COMPRESS_RESEARCH_SYSTEM_PROMPT, COMPRESS_RESEARCH_HUMAN_PROMPT 
 from deep_research import logging as dr_logging
+from deep_research import iteration_config
 
 logger = dr_logging.get_logger(__name__)
 
@@ -43,8 +44,16 @@ def llm_call(state: ResearcherState):
     logger.debug("llm_call invoked with %d messages", msg_count)
 
     # 调用大模型
+    system_prompt = RESEARCH_AGENT_PROMPT.format(
+        date=get_today_str(),
+        simple_search_calls_min=iteration_config.SIMPLE_SEARCH_CALLS_MIN,
+        simple_search_calls_max=iteration_config.SIMPLE_SEARCH_CALLS_MAX,
+        max_search_calls=iteration_config.MAX_SEARCH_CALLS,
+        search_resource_threshold=iteration_config.SEARCH_RESOURCE_THRESHOLD,
+        max_repeated_searches=iteration_config.MAX_REPEATED_SEARCHES,
+    )
     response = model_with_tools.invoke(
-        [SystemMessage(content=RESEARCH_AGENT_PROMPT)] + state["researcher_messages"]
+        [SystemMessage(content=system_prompt)] + state["researcher_messages"]
     )
 
     logger.info(

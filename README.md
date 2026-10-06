@@ -78,3 +78,20 @@ LANGCHAIN_PROJECT=YOUR_LANGSMITH_PROJECT_NAME
 安装 `requirements.txt` 中的依赖后，在项目根目录打开 `run.ipynb`，按顺序运行单元格。Notebook 会先通过 `load_dotenv()` 加载 `.env`，随后初始化模型和研究工作流。可以修改研究请求单元格中的问题，生成自己的研究报告。
 
 `.env` 和 `config.yml` 已加入 `.gitignore`，只保存在本地。需要共享配置结构时，请更新对应的 example 模板，并仅保留占位符。
+
+## 迭代次数与搜索预算
+
+统一在 [deep_research/iteration_config.py](deep_research/iteration_config.py) 修改，修改后重启 Python 进程或 Notebook 内核并重新运行。
+
+| 配置常量 | 默认值 | 作用 |
+| --- | --- | --- |
+| `MAX_SUPERVISOR_ITERATIONS` | 15 | Supervisor 调用轮数上限，由工具节点检查结束；一轮可含多个工具调用 |
+| `MAX_CONCURRENT_RESEARCHERS` | 3 | 提示词建议的每轮并行研究数 |
+| `MAX_RED_TEAM_CRITIQUES` | 3 | 红队有效批评次数上限，PASS 和过短回复不计数 |
+| `GRAPH_RECURSION_LIMIT` | 50 | Notebook 和草稿独立运行入口的 LangGraph 执行步数上限 |
+| `SIMPLE_SEARCH_CALLS_MIN` / `SIMPLE_SEARCH_CALLS_MAX` | 2 / 3 | 简单查询的搜索预算范围 |
+| `MAX_SEARCH_CALLS` | 5 | 复杂查询搜索预算，以及未找到资源时的停止上限 |
+| `SEARCH_RESOURCE_THRESHOLD` | 3 | 相关示例/资源数量超过此值时建议停止 |
+| `MAX_REPEATED_SEARCHES` | 2 | 最近连续这么多次搜索返回类似信息时建议停止 |
+
+Supervisor 和红队的上限由代码检查；并行研究数、搜索预算和搜索提前停止条件仅通过提示词约束模型。`GRAPH_RECURSION_LIMIT` 按图执行步数计数，达到时由 LangGraph 抛出异常，不等同于正常结束研究；调用图时应将 `recursion_limit` 放在 `config` 顶层，与 `configurable` 并列。

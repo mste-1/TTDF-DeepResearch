@@ -10,6 +10,7 @@ from deep_research.prompts import RED_TEAM_PROMPT
 from deep_research.llm import get_chat_model
 from deep_research.states import SupervisorState, Critique
 from deep_research import logging as dr_logging
+from deep_research import iteration_config
 
 logger = dr_logging.get_logger(__name__)
 
@@ -18,7 +19,6 @@ logger = dr_logging.get_logger(__name__)
 red_team_model = get_chat_model("red_team")
 
 # CONSTANTS
-MAX_CRITIC = 3           # 红队最大批评次数，防止追求完美，无限循环
 MIN_DRAFT_LEN = 50      # 报告草稿字数最少不低于50, 否则不予评判，直接返回
 MIN_CRITIC = 20          # 如果红队输出很短，则判定没有缺陷（防止模型指令遵循不足输出“PASS”以外的其他字符） 
 
@@ -33,7 +33,7 @@ async def red_team_node(state: SupervisorState) -> dict:
     critique_nums = state.get("critique_nums", 0)
 
     # 设置最大对抗次数
-    if critique_nums >= MAX_CRITIC or not draft or len(draft) < MIN_DRAFT_LEN:
+    if critique_nums >= iteration_config.MAX_RED_TEAM_CRITIQUES or not draft or len(draft) < MIN_DRAFT_LEN:
         return {}
 
     # 组装prompt

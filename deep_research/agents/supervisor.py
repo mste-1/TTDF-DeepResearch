@@ -38,6 +38,7 @@ from deep_research.states import (
 from deep_research.utils import get_today_str
 from deep_research.tools import _think_tool, _refine_draft_report_tool
 from deep_research import logging as dr_logging
+from deep_research import iteration_config
 
 logger = dr_logging.get_logger(__name__)
 
@@ -78,9 +79,7 @@ supervisor_model = get_chat_model("supervisor")
 supervisor_model_with_tools = supervisor_model.bind_tools(supervisor_tools)
 
 
-# System constants (最大迭代次数/最大并行Sub-Agents)
-max_researcher_iterations = 15 # Calls to think_tool + ConductResearch + refine_draft_report
-max_concurrent_researchers = 3 # 最大并行子agent数
+# 质量阈值与消息标识；迭代和并行预算统一在 iteration_config 中维护。
 min_need_repair_score = 6.0    # 评估低于这个分数，就要出发agent修复提醒
 SUPERVISOR_CONTEXT_MESSAGE_ID = "supervisor_research_context"
 
@@ -118,8 +117,8 @@ async def supervisor(state: SupervisorState) -> Command[Literal["supervisor_tool
     # 组装系统提示词
     system_message = MULTI_STEP_DENOISE_PROMPT.format(
         date=get_today_str(), 
-        max_concurrent_research_units=max_concurrent_researchers,
-        max_researcher_iterations=max_researcher_iterations
+        max_concurrent_research_units=iteration_config.MAX_CONCURRENT_RESEARCHERS,
+        max_researcher_iterations=iteration_config.MAX_SUPERVISOR_ITERATIONS
     )
     messages = [SystemMessage(content=system_message)] + supervisor_messages
  
@@ -175,7 +174,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
     most_recent_message = supervisor_messages[-1]
 
     # 检查是否达到了最大迭代次数或者supervisor是否输出工具调用
-    exceeded_iterations = research_iterations >= max_researcher_iterations
+    exceeded_iterations = research_iterations >= iteration_config.MAX_SUPERVISOR_ITERATIONS
     no_tool_calls = not most_recent_message.tool_calls
     research_complete = any(
         tool_call["name"] == "ResearchComplete" 

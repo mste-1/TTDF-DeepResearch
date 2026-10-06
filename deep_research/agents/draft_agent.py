@@ -28,6 +28,7 @@ if __name__ == "__main__":
     load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from deep_research import logging as dr_logging
+from deep_research import iteration_config
 from deep_research.llm import get_chat_model
 from deep_research.prompts import RESEARCH_BRIEF_PROMPT, DRAFT_REPORT_PROMPT  
 from deep_research.states import AgentState, ResearchQuestion, AgentInputState, DraftReport
@@ -122,7 +123,10 @@ if __name__ == "__main__":
     print(draft_agent.get_graph().draw_ascii())
 
     # 测试问题
-    thread = {"configurable": {"thread_id": "1", "recursion_limit": 50}}
+    thread = {
+        "configurable": {"thread_id": "1"},
+        "recursion_limit": iteration_config.GRAPH_RECURSION_LIMIT,
+    }
     result = draft_agent.invoke({"messages": [HumanMessage(content="帮我写一个关于英伟达最新GPU的调研报告")]}, config=thread)
 
     # 输出
