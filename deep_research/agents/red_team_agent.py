@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 from langchain.chat_models import init_chat_model
 
 from deep_research.prompts import RED_TEAM_PROMPT
-from deep_research.llm import get_chat_model
+from deep_research.llm import get_chat_model, get_llm_response_text
 from deep_research.states import SupervisorState, Critique
 from deep_research import logging as dr_logging
 from deep_research import iteration_config
@@ -41,7 +41,7 @@ async def red_team_node(state: SupervisorState) -> dict:
 
     # 调用红队大模型获得对抗建议
     response = await red_team_model.ainvoke([HumanMessage(content=prompt)])
-    content = response.content
+    content = get_llm_response_text(response, context="red_team")
 
     # 如果“PASS”, 则直接返回
     if "PASS" in content or len(content) < MIN_CRITIC:

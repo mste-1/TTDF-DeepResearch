@@ -12,7 +12,7 @@ from deep_research.states import AgentState, AgentInputState
 from deep_research.prompts import FINAL_REPORT_PROMPT
 from deep_research.agents import write_research_brief, write_draft_report
 from deep_research.agents import supervisor_agent
-from deep_research.llm import get_chat_model
+from deep_research.llm import get_chat_model, get_llm_response_text
 
 
 # ===== Config =====
@@ -40,10 +40,11 @@ async def final_report_generation(state: AgentState):
 
     # 生成最后的报告
     final_report = await writer_model.ainvoke([HumanMessage(content=final_report_prompt)])
+    content = get_llm_response_text(final_report, context="final_report_generation")
 
     return {
-        "final_report": final_report.content, 
-        "messages": ["最终的报告: " + final_report.content],
+        "final_report": content,
+        "messages": ["最终的报告: " + content],
     }
 
 

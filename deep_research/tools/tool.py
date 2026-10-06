@@ -11,7 +11,7 @@ from langchain_core.tools import tool, InjectedToolArg
 
 from deep_research import logging as dr_logging
 from deep_research.utils import get_today_str
-from deep_research.llm import get_chat_model
+from deep_research.llm import get_chat_model, get_llm_response_text
 from deep_research.states import Summary
 from deep_research.prompts import SUMMARIZE_PROMPT, REFINE_DRAFT_REPORT_PROMPT 
 from deep_research.tools.search_factory import (
@@ -370,17 +370,9 @@ def refine_draft_report(research_brief: Annotated[str, InjectedToolArg],
     # 调用大模型来修正
     draft_report_obj = writer_model.invoke([HumanMessage(content=draft_report_prompt)])
 
-    # 优先使用正文；正文为空时尝试推理内容，仍为空则保留精修前的草稿。
-    content = getattr(draft_report_obj, "content", draft_report_obj)
-    if isinstance(content, str) and content.strip():
-        return content
-
-    additional_kwargs = getattr(draft_report_obj, "additional_kwargs", {}) or {}
-    reasoning_content = additional_kwargs.get("reasoning_content", "")
-    if isinstance(reasoning_content, str) and reasoning_content.strip():
-        return reasoning_content
-
-    return draft_report
+    # 精修独有的兜底：模型正文和推理内容都为空时，保留原草稿。
+    content = get_llm_response_text(draft_report_obj, context="refine_draft_report")
+    return content or draft_report
 
 
 # 注册成LangChain工具

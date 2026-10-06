@@ -10,9 +10,9 @@
 
 from typing_extensions import Literal
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, filter_messages
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, ToolMessage, filter_messages
 
-from deep_research.llm import get_chat_model
+from deep_research.llm import get_chat_model, get_llm_response_text
 from deep_research.states import ResearcherState, ResearcherOutputState
 from deep_research.utils import get_today_str
 from deep_research.tools import _tavily_search_tool, _think_tool
@@ -103,7 +103,8 @@ def compress_research(state: ResearcherState) -> dict:
 
     # 从messages和tools抽取raw notes
     raw_notes = [
-        str(m.content) for m in filter_messages(
+        get_llm_response_text(m, context="research_raw_notes") if isinstance(m, AIMessage)
+        else str(m.content) for m in filter_messages(
             state["researcher_messages"], 
             include_types=["tool", "ai"]
         )
@@ -111,7 +112,7 @@ def compress_research(state: ResearcherState) -> dict:
 
     logger.debug("compress_research produced raw_notes_count=%d", len(raw_notes))
     return {
-        "compressed_research": str(response.content),
+        "compressed_research": get_llm_response_text(response, context="compress_research"),
         "raw_notes": ["\n".join(raw_notes)]
     }
 

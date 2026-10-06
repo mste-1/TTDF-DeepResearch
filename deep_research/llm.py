@@ -43,6 +43,25 @@ class DeepSeekChatModel(ChatDeepSeek):
         return payload
 
 
+def get_llm_response_text(response: Any, *, context: str = "llm") -> str:
+    """提取LLM正文，空正文回退到reasoning_content；两者都空时记录错误并返回空串。
+
+    适用于只消费文本的调用点，不修改原消息或处理工具调用、结构化输出。
+    空白字符串同样视为空；保留有效文本原有的格式。
+    """
+    content = getattr(response, "content", response)
+    if isinstance(content, str) and content.strip():
+        return content
+
+    additional_kwargs = getattr(response, "additional_kwargs", {}) or {}
+    reasoning_content = additional_kwargs.get("reasoning_content", "")
+    if isinstance(reasoning_content, str) and reasoning_content.strip():
+        return reasoning_content
+
+    logger.error("[%s] LLM response content and reasoning_content are empty", context)
+    return ""
+
+
 def _resolve_stage(stage: str | None) -> str:
     return stage or os.environ.get("STAGE") or DEFAULT_STAGE
 
