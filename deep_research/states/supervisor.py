@@ -33,7 +33,7 @@ class SupervisorState(TypedDict):
     critique_nums: int = 0                                              # 跟踪红队批评次数的计数器
     raw_notes: Annotated[list[str], operator.add] = []                  # 从子代理研究中收集的原始未处理研究笔记
     draft_report: str                                                   # 报告草稿
-    active_critiques: Annotated[List[Critique], operator.add]           # 用于存放主动评估的内容  
+    pending_critiques: List[Critique]                                  # 一次性批评队列，覆盖更新；成功修稿后清空
     quality_history: Annotated[List[QualityMetric], operator.add]       # 质量评估的历史记录
     needs_quality_repair: bool                                          # 评估员可以设置一个bool标志，向supervisor发出报告草稿质量低的信号
 

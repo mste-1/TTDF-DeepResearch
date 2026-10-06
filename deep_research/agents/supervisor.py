@@ -123,10 +123,9 @@ async def supervisor(state: SupervisorState) -> Command[Literal["supervisor_tool
     messages = [SystemMessage(content=system_message)] + supervisor_messages
  
     # 动态上下文注入：检查并注入任何未处理的对抗性反馈，实现自我纠正机制。
-    critiques = state.get("active_critiques", [])
-    unaddressed = [c for c in critiques if not c.addressed]
-    if unaddressed:
-        critique_text = "\n".join([f"- {c.author} says: {c.concern}" for c in unaddressed])
+    critiques = state.get("pending_critiques", [])
+    if critiques:
+        critique_text = "\n".join([f"- {c.author} says: {c.concern}" for c in critiques])
         intervention = SystemMessage(content=CRITICAL_ADDRESS_PROMPT.format(critique_text=critique_text))
         messages.append(intervention)
 
@@ -284,6 +283,19 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
                     "findings": findings,
                     "draft_report": state.get("draft_report", "")
                 })
+
+                # 工具可能因空输出回退原稿；没有有效新稿就不能消费批评。
+                if (
+                    not isinstance(new_draft, str)
+                    or not new_draft.strip()
+                    or new_draft.strip() == state.get("draft_report", "").strip()
+                ):
+                    tool_messages.append(ToolMessage(
+                        content="Draft unchanged. Pending critiques were retained; please retry refinement.",
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"],
+                    ))
+                    continue
                 
                 # 执行Critical Step：Self-Evolution的评估
                 eval_result = evaluate_draft_quality(
@@ -310,6 +322,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
 
                 draft_report = new_draft
                 updates["draft_report"] = draft_report
+                updates["pending_critiques"] = []
                 
                 # 记录报告质量评分的记录，如果分数低于 min_need_repair_score，把repaire标志位置位true
                 updates["quality_history"] = [QualityMetric(

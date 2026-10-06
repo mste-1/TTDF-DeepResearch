@@ -3,7 +3,7 @@
 #   Description: Red-Team智能体 
 #***********************************************
 
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 from langchain.chat_models import init_chat_model
 
 from deep_research.prompts import RED_TEAM_PROMPT
@@ -51,15 +51,11 @@ async def red_team_node(state: SupervisorState) -> dict:
     critique = Critique(
         author="Red Team Adversary",
         concern=content,
-        addressed=False
     )
     logger.info(f"[RED TEAM] {content}")
 
-    # 返回active_critiques实现动态上下文注入，并把该意见作为System Message注入到Supervisor的消息历史中
+    # 队列整体覆盖更新；批评仅由Supervisor动态注入，不永久写入消息历史。
     return {
-        "active_critiques": [critique],
+        "pending_critiques": [*state.get("pending_critiques", []), critique],
         "critique_nums": critique_nums + 1,
-        "supervisor_messages": [
-            SystemMessage(content=f"ADVERSARIAL FEEDBACK DETECTED: {content}")
-        ]
     }
