@@ -1,3 +1,4 @@
 # Local configuration containing secrets
 /.env
 /config.yml
+/__pycache__/
