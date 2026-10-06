@@ -21,10 +21,11 @@ from langchain_core.messages import (
     filter_messages
 )
 from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
 from langgraph.types import Command
 
 from deep_research.llm import get_chat_model
-from deep_research.prompts import CRITICAL_ADDRESS_PROMPT, MULTI_STEP_DENOISE_PROMPT
+from deep_research.prompts import CRITICAL_ADDRESS_PROMPT, MULTI_STEP_DENOISE_PROMPT, RESEARCH_BASE_PROMPT
 from deep_research.agents.research_agent import researcher_agent
 from deep_research.agents.red_team_agent import red_team_node
 from deep_research.agents.evaluator_agent import evaluate_draft_quality 
@@ -81,6 +82,7 @@ supervisor_model_with_tools = supervisor_model.bind_tools(supervisor_tools)
 max_researcher_iterations = 15 # Calls to think_tool + ConductResearch + refine_draft_report
 max_concurrent_researchers = 3 # 最大并行子agent数
 min_need_repair_score = 6.0    # 评估低于这个分数，就要出发agent修复提醒
+SUPERVISOR_CONTEXT_MESSAGE_ID = "supervisor_research_context"
 
 
 # ===== SUPERVISOR NODES =====
@@ -99,6 +101,17 @@ async def supervisor(state: SupervisorState) -> Command[Literal["supervisor_tool
         用于跳转到 supervisor_tools 节点并更新状态的命令
     """
     supervisor_messages = state.get("supervisor_messages", [])
+    research_brief = state.get("research_brief", "")
+    draft_report = state.get("draft_report", "")
+    # 首轮插入报告消息，后续按固定 ID 原位更新，保留第一条消息的位置。
+    context_message = HumanMessage(
+        id=SUPERVISOR_CONTEXT_MESSAGE_ID,
+        content=RESEARCH_BASE_PROMPT.format(
+            research_brief=research_brief,
+            draft_report=draft_report,
+        ),
+    )
+    supervisor_messages = add_messages(supervisor_messages, [context_message])
     iteration = state.get("research_iterations", 0)
     logger.info("[SUPERVISOR] supervisor invoked (iteration=%d, messages=%d)", iteration, len(supervisor_messages))
  
@@ -134,7 +147,7 @@ async def supervisor(state: SupervisorState) -> Command[Literal["supervisor_tool
     return Command(
         goto="supervisor_tools",
         update={
-            "supervisor_messages": [response],
+            "supervisor_messages": [context_message, response],
             "research_iterations": iteration + 1,
             "needs_quality_repair": False # 在向supervisor发出提醒后，重置修复标志
         }

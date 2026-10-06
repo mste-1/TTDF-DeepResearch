@@ -98,7 +98,7 @@ def write_draft_report(state: AgentState) -> Command[Literal["__end__"]]:
     return {
         "research_brief": research_brief,
         "draft_report": response.draft_report, 
-        "supervisor_messages": ["Here is the draft report: " + response.draft_report, research_brief]
+        "supervisor_messages": []
     }
 
 
