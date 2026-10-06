@@ -370,8 +370,17 @@ def refine_draft_report(research_brief: Annotated[str, InjectedToolArg],
     # 调用大模型来修正
     draft_report_obj = writer_model.invoke([HumanMessage(content=draft_report_prompt)])
 
-    # 如果返回是message则抽取content字段，否则直接返回
-    return getattr(draft_report_obj, "content", draft_report_obj)
+    # 优先使用正文；正文为空时尝试推理内容，仍为空则保留精修前的草稿。
+    content = getattr(draft_report_obj, "content", draft_report_obj)
+    if isinstance(content, str) and content.strip():
+        return content
+
+    additional_kwargs = getattr(draft_report_obj, "additional_kwargs", {}) or {}
+    reasoning_content = additional_kwargs.get("reasoning_content", "")
+    if isinstance(reasoning_content, str) and reasoning_content.strip():
+        return reasoning_content
+
+    return draft_report
 
 
 # 注册成LangChain工具
