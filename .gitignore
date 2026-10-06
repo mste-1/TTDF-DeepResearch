@@ -2,3 +2,8 @@
 /.env
 /config.yml
 /__pycache__/
+/deep_research/__pycache__/
+/deep_research/agents/__pycache__/
+/deep_research/prompts/__pycache__/
+/deep_research/states/__pycache__/
+/deep_research/tools/__pycache__/
