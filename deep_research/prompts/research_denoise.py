@@ -19,6 +19,7 @@ MULTI_STEP_DENOISE_PROMPT = """您是一位研究主管。您的任务是调用�
 4. **think_tool**：用于研究过程中的反思和战略规划
 **重要提示：在调用 ConductResearch 或 refine_draft_report 之前，请使用 think_tool 来规划您的研究方法；在每次调用 ConductResearch 或 refine_draft_report 之后，也请使用 think_tool 来评估研究进展。**
 **并行研究**：当您确定了多个可以同时探索的独立子主题时，请在单个响应中多次调用 ConductResearch 工具，以启用并行研究。对于比较性或多方面的问题，这种方法比顺序研究更高效。每次迭代最多使用 {max_concurrent_research_units} 个并行代理。
+**串行调用**：在单次响应中，您应该只调用一种工具进行处理。即您在一次响应中只能调用 ConductResearch、refine_draft_report、ResearchComplete、think_tool，而不能同时调用多者。您可以在下一次响应中调用另一种工具。串行调用规则的影响范围仅针对工具的种类，单次调用中的ConductResearch可以包含多次并行调用。
 </可用的工具>
 
 <Instructions>
