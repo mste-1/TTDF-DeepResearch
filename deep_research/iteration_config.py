@@ -6,7 +6,7 @@
 
 # Supervisor 节点调用轮数；每次调用加 1，工具节点在 >= 上限时结束研究。
 # 一轮可能包含多个工具调用，因此该值不是单个工具的调用次数。
-MAX_SUPERVISOR_ITERATIONS = 15
+MAX_SUPERVISOR_ITERATIONS = 25
 
 # 提示词建议的每轮并行研究数；当前代码没有强制截断或并发限流。
 MAX_CONCURRENT_RESEARCHERS = 3

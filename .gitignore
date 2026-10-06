@@ -1,9 +1,6 @@
 # Local configuration containing secrets
 /.env
 /config.yml
-/__pycache__/
-/deep_research/__pycache__/
-/deep_research/agents/__pycache__/
-/deep_research/prompts/__pycache__/
-/deep_research/states/__pycache__/
-/deep_research/tools/__pycache__/
+
+# Python cache directories at any depth
+__pycache__/
