@@ -1,5 +1,6 @@
 """HTTP and durable state invariants; no model/search calls."""
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 import json
 import tempfile
@@ -84,6 +85,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.client.delete(f"/api/v1/research-runs/{run['id']}", headers=admin_headers).status_code, 404)
 
     def test_idempotency_capacity_and_repeat_topic(self):
+        self.database.settings = replace(self.settings, daily_research_limit=100)
         headers = {**self.ready_user(), "Idempotency-Key": "stable-submit-123"}
         first = self.client.post("/api/v1/research-runs", json={"topic": "主题"}, headers=headers)
         duplicate = self.client.post("/api/v1/research-runs", json={"topic": "主题"}, headers=headers)
@@ -97,6 +99,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/v1/research-runs", json={"topic": "主题"}, headers=headers).json()["id"], first.json()["id"])
 
     def test_concurrent_admission_never_exceeds_ten(self):
+        self.database.settings = replace(self.settings, daily_research_limit=100)
         user = {"id": self.user_id, "role": "user"}
         def submit(index):
             try:
@@ -107,6 +110,22 @@ class ServerTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=16) as executor:
             results = list(executor.map(submit, range(25)))
         self.assertEqual(sum(x is not None for x in results), 10)
+
+    def test_daily_limit_returns_actionable_error_and_replays_accepted_request(self):
+        headers = {**self.ready_user(), "Idempotency-Key": "daily-submit-123"}
+        first = self.client.post("/api/v1/research-runs", json={"topic": "主题"}, headers=headers)
+        self.assertEqual(first.status_code, 202)
+        for _ in range(4):
+            self.assertEqual(self.create(headers).status_code, 202)
+        rejected = self.create(headers)
+        self.assertEqual(rejected.status_code, 429)
+        self.assertEqual(rejected.json()["code"], "DAILY_RESEARCH_LIMIT")
+        self.assertIn("5 次", rejected.json()["message"])
+        self.assertIn("北京时间", rejected.json()["message"])
+        self.assertFalse(rejected.json()["retryable"])
+        replay = self.client.post("/api/v1/research-runs", json={"topic": "主题"}, headers=headers)
+        self.assertEqual(replay.status_code, 202)
+        self.assertEqual(replay.json()["id"], first.json()["id"])
 
     def test_queued_cancel_and_fresh_retry(self):
         headers = self.ready_user()

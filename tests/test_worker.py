@@ -1,6 +1,7 @@
 """Actual spawned-process tests with explicit deterministic, unpaid test runners."""
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 import os
 import socket
 import subprocess
@@ -89,20 +90,20 @@ class WorkerTests(unittest.TestCase):
             self.database.authorize(con, run["id"], owner or self.user)
             return con.execute("SELECT markdown FROM research_artifacts WHERE run_id=? AND id=?", (run["id"], artifact_id)).fetchone()[0]
 
-    def test_five_slots_fifo_single_user_and_cancel_does_not_stop_others(self):
-        runs = [self.submit("hold") for _ in range(7)]
-        self.until(lambda: len(self.manager.executions) == 5 and len(self.detail(runs[0])["artifacts"]) == 1)
-        self.assertEqual(list(self.manager.executions), [r["id"] for r in runs[:5]])
-        self.assertEqual(self.detail(runs[5])["queue_position"], 1)
+    def test_two_slots_fifo_single_user_and_cancel_does_not_stop_others(self):
+        runs = [self.submit("hold") for _ in range(4)]
+        self.until(lambda: len(self.manager.executions) == 2 and len(self.detail(runs[0])["artifacts"]) == 1)
+        self.assertEqual(list(self.manager.executions), [r["id"] for r in runs[:2]])
+        self.assertEqual(self.detail(runs[2])["queue_position"], 1)
         first = self.manager.executions[runs[0]["id"]]
         pid = first.process.pid
         self.database.cancel(runs[0]["id"], self.user)
-        self.until(lambda: self.detail(runs[0])["status"] == "cancelled" and runs[5]["id"] in self.manager.executions)
+        self.until(lambda: self.detail(runs[0])["status"] == "cancelled" and runs[2]["id"] in self.manager.executions)
         self.assertFalse(psutil.pid_exists(pid))
-        self.assertEqual(len(self.manager.executions), 5)
+        self.assertEqual(len(self.manager.executions), 2)
         self.assertEqual(self.detail(runs[1])["status"], "running")
         self.assertEqual(self.artifact_text(runs[0]), "已保存的草稿")
-        self.assertEqual(self.detail(runs[6])["status"], "queued")
+        self.assertEqual(self.detail(runs[3])["status"], "queued")
 
     def test_timeout_kills_noncooperative_process_then_releases_slot(self):
         run = self.submit("ignore")
@@ -119,32 +120,32 @@ class WorkerTests(unittest.TestCase):
         with self.database.read() as con:
             self.assertEqual(con.execute("SELECT COUNT(*) FROM worker_slots WHERE state!='idle'").fetchone()[0], 0)
 
-    def test_seven_tasks_across_two_users_share_fifo_without_state_or_cancel_leakage(self):
+    def test_four_tasks_across_two_users_share_fifo_without_state_or_cancel_leakage(self):
         second_user = {"id": self.database.create_user("second-user", "initial-password", must_change_password=False), "role": "user"}
-        owners = [self.user if index % 2 == 0 else second_user for index in range(7)]
+        owners = [self.user if index % 2 == 0 else second_user for index in range(4)]
         runs = [self.database.create_run(owner, "hold", f"task-{index}", f"mixed-task-{index}") for index, owner in enumerate(owners)]
         def detail(index):
             return self.database.detail(runs[index]["id"], owners[index])
-        self.until(lambda: all(detail(index)["artifacts"] for index in range(5)))
-        self.assertEqual(list(self.manager.executions), [run["id"] for run in runs[:5]])
-        self.assertEqual(len({execution.process.pid for execution in self.manager.executions.values()}), 5)
-        for index in range(5):
+        self.until(lambda: all(detail(index)["artifacts"] for index in range(2)))
+        self.assertEqual(list(self.manager.executions), [run["id"] for run in runs[:2]])
+        self.assertEqual(len({execution.process.pid for execution in self.manager.executions.values()}), 2)
+        for index in range(2):
             self.assertEqual(self.artifact_text(runs[index], owner=owners[index]), f"已保存的草稿：task-{index}")
             other = second_user if owners[index]["id"] == self.user["id"] else self.user
             with self.assertRaises(ServiceError) as rejected:
                 self.database.detail(runs[index]["id"], other)
             self.assertEqual(rejected.exception.code, "NOT_FOUND")
-        self.assertEqual(detail(5)["queue_position"], 1)
-        self.assertEqual(detail(6)["queue_position"], 2)
+        self.assertEqual(detail(2)["queue_position"], 1)
+        self.assertEqual(detail(3)["queue_position"], 2)
         stopped_pid = self.manager.executions[runs[0]["id"]].process.pid
         self.database.cancel(runs[0]["id"], self.user)
-        self.until(lambda: detail(0)["status"] == "cancelled" and bool(detail(5)["artifacts"]))
+        self.until(lambda: detail(0)["status"] == "cancelled" and bool(detail(2)["artifacts"]))
         self.assertFalse(psutil.pid_exists(stopped_pid))
-        self.assertEqual(len(self.manager.executions), 5)
-        self.assertTrue(all(detail(index)["status"] == "running" for index in range(1, 6)))
-        self.assertEqual(self.artifact_text(runs[5], owner=owners[5]), "已保存的草稿：task-5")
-        self.assertEqual(detail(6)["status"], "queued")
-        self.assertEqual(detail(6)["queue_position"], 1)
+        self.assertEqual(len(self.manager.executions), 2)
+        self.assertTrue(all(detail(index)["status"] == "running" for index in range(1, 3)))
+        self.assertEqual(self.artifact_text(runs[2], owner=owners[2]), "已保存的草稿：task-2")
+        self.assertEqual(detail(3)["status"], "queued")
+        self.assertEqual(detail(3)["queue_position"], 1)
 
     def test_finished_warning_crash_error_and_isolated_results(self):
         runs = [self.submit(topic) for topic in ("success", "warning", "crash", "error")]
@@ -180,6 +181,70 @@ class WorkerTests(unittest.TestCase):
         self.manager.started = False
         self.manager = replacement
         self.until(lambda: self.detail(queued)["status"] == "completed")
+
+    def test_shrink_five_slots_recovers_high_slot_after_lock_and_preserves_reports(self):
+        self.manager.close()
+        legacy_settings = replace(self.settings, worker_count=5, daily_research_limit=10)
+        self.database = Database(legacy_settings)
+        self.manager = WorkerManager(legacy_settings, runner=test_runner, allow_test_runner=True)
+        self.manager.start()
+        report = self.submit("success")
+        self.until(lambda: self.detail(report)["status"] == "completed")
+        runs = [self.submit("ignore") for _ in range(5)]
+        self.until(lambda: all(self.detail(run)["artifacts"] for run in runs))
+        queued = self.submit("success")
+        old_manager = self.manager
+        executions = list(old_manager.executions.values())
+        pids = [execution.process.pid for execution in executions]
+        with self.database.read() as con:
+            old_slots = [tuple(row) for row in con.execute("SELECT id,state,run_id,execution_id,pid FROM worker_slots ORDER BY id")]
+        self.assertEqual(old_slots[4][2], runs[4]["id"])
+
+        replacement = WorkerManager(self.settings, runner=test_runner, allow_test_runner=True)
+        with self.assertRaisesRegex(RuntimeError, "already owns"):
+            replacement.start()
+        self.assertTrue(all(psutil.pid_exists(pid) for pid in pids))
+        with self.database.read() as con:
+            self.assertEqual([tuple(row) for row in con.execute("SELECT id,state,run_id,execution_id,pid FROM worker_slots ORDER BY id")], old_slots)
+
+        # Simulate loss of the prior manager while all five registered children,
+        # including the child in slot 4, still need recovery before shrinking.
+        old_manager.lock.release()
+        replacement.start()
+        self.manager = replacement
+        for execution in executions:
+            execution.process.join(timeout=1)
+            execution.channel.close()
+            if execution.job:
+                execution.job.close()
+            execution.process.close()
+        old_manager.executions.clear()
+        old_manager.started = False
+        self.assertTrue(all(not psutil.pid_exists(pid) for pid in pids))
+        self.assertTrue(all(self.detail(run)["status"] == "interrupted" for run in runs))
+        self.assertTrue(all(self.detail(run)["artifacts"] for run in runs))
+        self.assertEqual(self.detail(report)["status"], "completed")
+        self.assertEqual(self.artifact_text(report, "final-report"), "# 完整报告\n\n测试结果")
+        self.assertEqual(self.detail(queued)["status"], "queued")
+        with self.database.read() as con:
+            self.assertEqual([tuple(row) for row in con.execute("SELECT id,state FROM worker_slots ORDER BY id")], [(0, "idle"), (1, "idle")])
+        self.database = Database(self.settings)
+        self.database.initialize()
+        self.until(lambda: self.detail(queued)["status"] == "completed")
+
+    def test_shrink_refuses_to_discard_unrecovered_slot(self):
+        self.manager.close()
+        with self.database.transaction() as con:
+            con.execute("INSERT INTO worker_slots(id,state,run_id,execution_id) VALUES(4,'stopping','missing-run','missing-execution')")
+        self.manager = WorkerManager(self.settings, runner=test_runner, allow_test_runner=True)
+        with self.assertRaisesRegex(RuntimeError, "Cannot shrink"):
+            self.manager.start()
+        with self.database.read() as con:
+            self.assertEqual(tuple(con.execute("SELECT state,run_id,execution_id FROM worker_slots WHERE id=4").fetchone()),
+                             ("stopping", "missing-run", "missing-execution"))
+        lock = ManagerLock(self.settings.data_dir / "manager.lock")
+        lock.acquire()
+        lock.release()
 
     def test_partial_ipc_frame_never_blocks_receiver(self):
         run = self.submit("success")

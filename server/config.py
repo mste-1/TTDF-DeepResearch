@@ -10,7 +10,8 @@ class Settings:
     allowed_origins: tuple[str, ...] = ("http://localhost:5173", "http://localhost:8000")
     secure_cookies: bool = True
     session_hours: int = 24
-    worker_count: int = 5
+    worker_count: int = 2
+    daily_research_limit: int = 5
     queue_capacity: int = 10
     execution_timeout: float = 3600
     cancel_grace: float = 5

@@ -1,4 +1,4 @@
-"""One manager, five isolated research processes, durable FIFO scheduling.
+"""One manager, two isolated research processes by default, durable FIFO scheduling.
 
 Each process has its own socket and cancellation Event. Nonblocking incremental
 framing ensures killing one writer halfway through a frame cannot block the pool.
@@ -157,6 +157,15 @@ class WorkerManager:
         self.lock.acquire()
         try:
             self.recover()
+            # Recovery needs every persisted slot, including slots removed by a
+            # capacity reduction. Only the manager holding the lock may prune them.
+            with self.database.transaction() as con:
+                occupied = con.execute("""SELECT 1 FROM worker_slots WHERE id>=?
+                    AND (state!='idle' OR run_id IS NOT NULL OR execution_id IS NOT NULL OR pid IS NOT NULL)
+                    LIMIT 1""", (self.settings.worker_count,)).fetchone()
+                if occupied:
+                    raise RuntimeError("Cannot shrink worker slots before prior executions are cleaned up")
+                con.execute("DELETE FROM worker_slots WHERE id>=? AND state='idle'", (self.settings.worker_count,))
             self.heartbeat()
             self.database.cleanup_events()
             self.started = True
