@@ -140,6 +140,26 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.client.delete(f"/api/v1/research-runs/{new['id']}", headers=headers).status_code, 409)
         self.assertEqual(self.client.delete(f"/api/v1/research-runs/{run['id']}", headers=headers).status_code, 204)
 
+    def test_daily_quota_exemption_uses_authenticated_admin_role(self):
+        user_headers = self.login("bob")
+        for _ in range(5):
+            self.assertEqual(self.create(user_headers).status_code, 202)
+        forged = self.create(user_headers, role="admin", user_id=self.admin_id)
+        self.assertEqual(forged.status_code, 429)
+        self.assertEqual(forged.json()["code"], "DAILY_RESEARCH_LIMIT")
+        admin_headers = self.login("admin")
+        for _ in range(6):
+            created = self.create(admin_headers)
+            self.assertEqual(created.status_code, 202, created.text)
+            self.assertEqual(created.json()["user_id"], self.admin_id)
+            cancelled = self.client.post(f"/api/v1/research-runs/{created.json()['id']}/cancel", headers=admin_headers)
+            self.assertEqual(cancelled.status_code, 200)
+        with self.database.read() as con:
+            self.assertEqual(con.execute("SELECT SUM(submissions) FROM research_daily_usage").fetchone()[0], 5)
+        rejected = self.create(self.login("bob"))
+        self.assertEqual(rejected.status_code, 429)
+        self.assertEqual(rejected.json()["code"], "DAILY_RESEARCH_LIMIT")
+
     def test_artifact_snapshot_sse_retention_and_source_boundary(self):
         headers = self.ready_user()
         run = self.create(headers).json()

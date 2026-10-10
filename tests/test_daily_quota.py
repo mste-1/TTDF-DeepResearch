@@ -43,16 +43,79 @@ class DailyQuotaTests(unittest.TestCase):
         self.assertFalse(raised.exception.retryable)
         self.assertTrue(any("\u4e00" <= ch <= "\u9fff" for ch in raised.exception.message))
 
-    def test_defaults_and_all_users_share_five_submissions(self):
+    def test_defaults_and_regular_users_share_five_submissions(self):
         self.assertEqual(self.settings.worker_count, 2)
         self.assertEqual(self.settings.daily_research_limit, 5)
-        other = self.make_user("bob")
-        admin = self.make_user("admin", "admin")
-        for user in (self.user, other, self.user, other, admin):
+        # An account named admin gets no exemption without the admin role.
+        other = self.make_user("admin")
+        for user in (self.user, other, self.user, other, self.user):
             self.submit(user)
-        for user in (self.user, other, admin):
+        for user in (self.user, other):
             with self.subTest(role=user["role"], user=user["id"]):
                 self.assert_quota_exhausted(user)
+        self.assertEqual(self.usage(), 5)
+
+    def test_admin_new_runs_retries_and_replays_never_consume_daily_quota(self):
+        admin = self.make_user("operator", "admin")
+        original = self.submit(admin)
+        self.database.cancel(original["id"], admin)
+        for _ in range(6):
+            run = self.submit(admin)
+            self.database.cancel(run["id"], admin)
+        self.assertEqual(self.usage(), 0)
+        for _ in range(5):
+            self.submit()
+        self.assert_quota_exhausted()
+        for index in range(6):
+            key = f"admin-retry-{index}"
+            run = self.submit(admin, key=key, retry_of=original["id"])
+            self.assertEqual(self.submit(admin, key=key, retry_of=original["id"])["id"], run["id"])
+            self.database.cancel(run["id"], admin)
+            self.database.delete(run["id"], admin)
+        self.assertEqual(self.usage(), 5)
+        self.assert_quota_exhausted()
+
+    def test_existing_daily_usage_is_preserved_when_admin_is_exempted(self):
+        admin = self.make_user("operator", "admin")
+        # A v3 database may contain usage whose original runs were deleted.
+        with self.database.transaction() as con:
+            con.execute("INSERT INTO research_daily_usage VALUES('2026-10-10',5)")
+        self.database.initialize()
+        self.assertEqual(self.submit(admin)["status"], "queued")
+        self.assertEqual(self.usage(), 5)
+        self.assert_quota_exhausted()
+
+    def test_admin_exemption_does_not_bypass_queue_capacity(self):
+        self.database = Database(replace(self.settings, queue_capacity=1))
+        admin = self.make_user("operator", "admin")
+        first = self.submit(admin)
+        for user in (admin, self.user):
+            with self.subTest(role=user["role"]), self.assertRaises(ServiceError) as raised:
+                self.submit(user)
+            self.assertEqual(raised.exception.code, "QUEUE_FULL")
+        self.assertEqual(self.usage(), 0)
+        self.database.cancel(first["id"], admin)
+        self.submit()
+        self.assertEqual(self.usage(), 1)
+
+    def test_concurrent_admin_and_regular_submissions_have_separate_accounting(self):
+        self.database = Database(replace(self.settings, queue_capacity=50))
+        admin = self.make_user("operator", "admin")
+
+        def submit(index):
+            user = admin if index % 2 else self.user
+            try:
+                self.submit(user, key=f"mixed-{index}")
+                return user["role"]
+            except ServiceError as exc:
+                self.assertEqual(user["role"], "user")
+                self.assertEqual(exc.code, "DAILY_RESEARCH_LIMIT")
+                return None
+
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            results = list(executor.map(submit, range(24)))
+        self.assertEqual(results.count("admin"), 12)
+        self.assertEqual(results.count("user"), 5)
         self.assertEqual(self.usage(), 5)
 
     def test_idempotent_replay_succeeds_after_quota_exhaustion(self):
@@ -135,6 +198,8 @@ class DailyQuotaTests(unittest.TestCase):
         previous_day = [self.submit() for _ in range(2)]
         self.clock.return_value = "2026-10-09T16:00:00.000Z"
         current_day = [self.submit() for _ in range(3)]
+        admin = self.make_user("operator", "admin")
+        admin_run = self.submit(admin)
         # Build a schema-v2 fixture, whose quota table did not exist yet.
         with self.database.transaction() as con:
             con.execute("UPDATE research_runs SET status='failed' WHERE id=?", (current_day[0]["id"],))
@@ -149,7 +214,8 @@ class DailyQuotaTests(unittest.TestCase):
             self.assertEqual(self.database.detail(run["id"], self.user)["created_at"], run["created_at"])
         with self.database.read() as con:
             self.assertEqual(con.execute("PRAGMA user_version").fetchone()[0], 3)
-            self.assertEqual(con.execute("SELECT COUNT(*) FROM research_runs").fetchone()[0], 5)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM research_runs").fetchone()[0], 6)
+        self.assertEqual(self.database.detail(admin_run["id"], admin)["id"], admin_run["id"])
         self.submit()
         self.submit()
         self.database.initialize()

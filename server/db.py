@@ -116,8 +116,9 @@ class Database:
                     con.execute("ALTER TABLE research_artifacts ADD COLUMN source_url TEXT")
                 if version < 3:
                     con.execute("""INSERT INTO research_daily_usage(day,submissions)
-                        SELECT date(created_at, '+8 hours'), COUNT(*) FROM research_runs
-                        GROUP BY date(created_at, '+8 hours')
+                        SELECT date(r.created_at, '+8 hours'), COUNT(*) FROM research_runs r
+                        JOIN users u ON u.id=r.user_id WHERE u.role!='admin'
+                        GROUP BY date(r.created_at, '+8 hours')
                         ON CONFLICT(day) DO UPDATE SET submissions=MAX(submissions,excluded.submissions)""")
                 con.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
                 con.executemany("INSERT OR IGNORE INTO worker_slots(id) VALUES(?)",
@@ -214,17 +215,21 @@ class Database:
                 self.authorize(con, retry_of, user)
             timestamp = now()
             day = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(BEIJING_TIME).date().isoformat()
-            usage = con.execute("SELECT submissions FROM research_daily_usage WHERE day=?", (day,)).fetchone()
-            if usage and usage["submissions"] >= self.settings.daily_research_limit:
-                raise ServiceError("DAILY_RESEARCH_LIMIT",
-                                   f"全站今日研究提交已达 {self.settings.daily_research_limit} 次上限，请于北京时间次日 00:00 后再试。",
-                                   429)
+            # The role comes from the authenticated server session, not request data.
+            counts_toward_quota = user["role"] != "admin"
+            if counts_toward_quota:
+                usage = con.execute("SELECT submissions FROM research_daily_usage WHERE day=?", (day,)).fetchone()
+                if usage and usage["submissions"] >= self.settings.daily_research_limit:
+                    raise ServiceError("DAILY_RESEARCH_LIMIT",
+                                       f"普通账户今日共享研究提交已达 {self.settings.daily_research_limit} 次上限，请于北京时间次日 00:00 后再试。",
+                                       429)
             queued = con.execute("SELECT COUNT(*) FROM research_runs WHERE status='queued'").fetchone()[0]
             if queued >= self.settings.queue_capacity:
                 raise ServiceError("QUEUE_FULL", "等待队列已满，请稍后重试。", 429, True)
             run_id = uid()
-            con.execute("""INSERT INTO research_daily_usage(day,submissions) VALUES(?,1)
-                ON CONFLICT(day) DO UPDATE SET submissions=submissions+1""", (day,))
+            if counts_toward_quota:
+                con.execute("""INSERT INTO research_daily_usage(day,submissions) VALUES(?,1)
+                    ON CONFLICT(day) DO UPDATE SET submissions=submissions+1""", (day,))
             con.execute("INSERT INTO research_runs(id,user_id,topic,instructions,status,created_at,idempotency_key,request_hash,retry_of) VALUES(?,?,?,?,'queued',?,?,?,?)",
                         (run_id, user["id"], topic, instructions, timestamp, key, digest, retry_of))
             self._event(con, run_id, {"type": "run.queued", "payload": {}})
