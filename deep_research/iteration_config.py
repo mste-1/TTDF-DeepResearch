@@ -15,8 +15,8 @@ MAX_CONCURRENT_RESEARCHERS = 3
 MAX_RED_TEAM_CRITIQUES = 3
 
 # LangGraph 执行步数上限，与业务迭代轮数不同；达到时由框架抛出异常。
-# 用于 run.ipynb 和 draft_agent 的独立运行入口，必须传在 config 顶层。
-GRAPH_RECURSION_LIMIT = 50
+# 用于网页 Worker、run.ipynb 和 draft_agent 的独立运行入口，必须传在 config 顶层。
+GRAPH_RECURSION_LIMIT = 100
 
 # 以下搜索预算和提前停止条件仅通过 Research Agent 提示词约束模型。
 # SIMPLE_SEARCH_CALLS_MIN = 2

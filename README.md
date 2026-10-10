@@ -101,7 +101,7 @@ LANGCHAIN_PROJECT=YOUR_LANGSMITH_PROJECT_NAME
 | `MAX_SUPERVISOR_ITERATIONS` | 15 | Supervisor 调用轮数上限，由工具节点检查结束；一轮可含多个工具调用 |
 | `MAX_CONCURRENT_RESEARCHERS` | 3 | 提示词建议的每轮并行研究数 |
 | `MAX_RED_TEAM_CRITIQUES` | 3 | 红队有效批评次数上限，PASS 和过短回复不计数 |
-| `GRAPH_RECURSION_LIMIT` | 50 | Notebook 和草稿独立运行入口的 LangGraph 执行步数上限 |
+| `GRAPH_RECURSION_LIMIT` | 100 | 网页 Worker、Notebook 和草稿独立运行入口的 LangGraph 执行步数上限 |
 | `SIMPLE_SEARCH_CALLS_MIN` / `SIMPLE_SEARCH_CALLS_MAX` | 2 / 3 | 简单查询的搜索预算范围 |
 | `MAX_SEARCH_CALLS` | 5 | 复杂查询搜索预算，以及未找到资源时的停止上限 |
 | `SEARCH_RESOURCE_THRESHOLD` | 3 | 相关示例/资源数量超过此值时建议停止 |
