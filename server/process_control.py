@@ -62,9 +62,19 @@ def stop_process_tree(pid, created):
             target.kill()
         except psutil.NoSuchProcess:
             pass
-    _gone, alive = psutil.wait_procs([*descendants, process], timeout=3)
-    if any(p.is_running() and p.status() != psutil.STATUS_ZOMBIE for p in alive):
-        raise RuntimeError("A research process has not stopped; its execution slot remains reserved")
+    # Do not reap children here: multiprocessing owns waitpid and needs the exit
+    # status. This fallback also runs before a spawned child has called setsid.
+    def alive(target):
+        try:
+            return target.is_running() and target.status() != psutil.STATUS_ZOMBIE
+        except psutil.NoSuchProcess:
+            return False
+
+    deadline = time.monotonic() + 3
+    while any(alive(target) for target in [*descendants, process]):
+        if time.monotonic() >= deadline:
+            raise RuntimeError("A research process has not stopped; its execution slot remains reserved")
+        time.sleep(0.02)
 
 
 class WindowsJob:

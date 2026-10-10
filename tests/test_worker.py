@@ -2,6 +2,7 @@
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+import gc
 import os
 import socket
 import subprocess
@@ -11,12 +12,14 @@ import threading
 import time
 import unittest
 from unittest.mock import patch
+import weakref
 
 import psutil
 
 from server.config import Settings
 from server.db import Database, TERMINAL
 from server.errors import ServiceError
+from server.process_control import stop_process_tree
 from server.worker import Execution, ManagerLock, WorkerManager
 
 
@@ -105,6 +108,28 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(self.artifact_text(runs[0]), "已保存的草稿")
         self.assertEqual(self.detail(runs[3])["status"], "queued")
 
+    def test_startup_gate_lives_until_the_research_process_exits(self):
+        event_refs = []
+        make_event = self.manager.context.Event
+
+        def track_event():
+            event = make_event()
+            event_refs.append(weakref.ref(event))
+            return event
+
+        run = self.submit("hold")
+        with patch.object(self.manager.context, "Event", side_effect=track_event):
+            self.manager.tick()
+        gc.collect()
+        # On POSIX, dropping the parent's final reference unlinks the named
+        # semaphores while the spawned child may still be unpickling them.
+        self.assertIsNotNone(event_refs[0](), "Startup gate was collected before the child finished")
+        self.until(lambda: bool(self.detail(run)["artifacts"]))
+        self.database.cancel(run["id"], self.user)
+        self.until(lambda: self.detail(run)["status"] == "cancelled")
+        gc.collect()
+        self.assertIsNone(event_refs[0](), "Startup gate leaked after process cleanup")
+
     def test_timeout_kills_noncooperative_process_then_releases_slot(self):
         run = self.submit("ignore")
         self.until(lambda: bool(self.detail(run)["artifacts"]))
@@ -119,6 +144,23 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(detail["artifacts"]), 1)
         with self.database.read() as con:
             self.assertEqual(con.execute("SELECT COUNT(*) FROM worker_slots WHERE state!='idle'").fetchone()[0], 0)
+
+    def test_stop_before_session_creation_preserves_multiprocessing_exit_status(self):
+        # A child stopped before _child_main calls setsid uses the tree fallback.
+        process = self.manager.context.Process(target=time.sleep, args=(60,))
+        process.start()
+        try:
+            created = psutil.Process(process.pid).create_time()
+            stop_process_tree(process.pid, created)
+            process.join(timeout=1)
+            self.assertFalse(process.is_alive())
+            self.assertIsNotNone(process.exitcode)
+        finally:
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=1)
+            if not process.is_alive():
+                process.close()
 
     def test_four_tasks_across_two_users_share_fifo_without_state_or_cancel_leakage(self):
         second_user = {"id": self.database.create_user("second-user", "initial-password", must_change_password=False), "role": "user"}
@@ -168,11 +210,13 @@ class WorkerTests(unittest.TestCase):
         self.manager.lock.release()
         replacement = WorkerManager(self.settings, runner=test_runner, allow_test_runner=True)
         replacement.start()
+        # The simulated old manager still owns this child. Reap the terminated
+        # process before checking PID absence; a Linux zombie still has a PID.
+        execution.process.join(timeout=1)
         self.assertFalse(psutil.pid_exists(pid))
         self.assertEqual(self.detail(run)["status"], "interrupted")
         self.assertTrue(self.detail(run)["artifacts"])
         self.assertEqual(self.detail(queued)["status"], "queued")
-        execution.process.join(timeout=1)
         execution.channel.close()
         if execution.job:
             execution.job.close()

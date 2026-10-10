@@ -134,6 +134,9 @@ class Execution:
     job: object = None
     outcome_received_at: float | None = None
     exit_cleanup_forced: bool = False
+    # POSIX spawn rebuilds named semaphores asynchronously. Keep the parent's
+    # Event alive until child cleanup so its finalizer cannot unlink them early.
+    startup_gate: object = None
 
 
 class WorkerManager:
@@ -212,7 +215,8 @@ class WorkerManager:
             job = WindowsJob.create(run["execution_id"])
             process.start()
             created = psutil.Process(process.pid).create_time()
-            execution = Execution(run, process, parent, cancelled, created, started=claimed_at, job=job)
+            execution = Execution(run, process, parent, cancelled, created,
+                                  started=claimed_at, job=job, startup_gate=gate)
             # Keep a local handle before any DB operation, including a failed registration.
             self.executions[run["id"]] = execution
             if job:

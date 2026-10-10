@@ -15,5 +15,7 @@ __pycache__/
 /deploy/.env
 /deploy/secrets/
 /deploy/tls/
+# Server-specific deployment information stays local.
+/deploy/[Hh][Oo][Nn][Gg][Kk][Oo][Nn][Gg].md
 .pytest_cache/
 *.pyc
