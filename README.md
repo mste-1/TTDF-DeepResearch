@@ -1,6 +1,17 @@
 # Deep Research Agent
 
-网页版本 **问砺 · 深度研究智能体**：参见 [运行与部署说明](deploy/README.md)。前端位于 `web/`，HTTP 服务与独立 Worker 管理进程位于 `server/`，研究引擎继续复用 `deep_research/`。账号通过服务器命令创建，支持并发研究、过程协作图、终止并保留成果、报告阅读和 Markdown 下载。开发验证与尚待服务器验收的事项见 [实施记录](docs/design/wenli-implementation.md)。
+## 在线体验：问砺 Wenli
+
+访问 **[wenliresearch.cc](https://wenliresearch.cc/)**，输入想研究的问题，即可由多个智能体协作检索资料、质疑论证并迭代生成研究报告。网页支持实时查看研究过程与资料来源、阅读阶段成果，以及下载 Markdown 报告。
+
+| 访客登录 | 信息 |
+| --- | --- |
+| 账号 | `user_0` |
+| 密码 | `user123456` |
+
+普通账户共享每日 5 次研究提交额度，按北京时间每日 00:00 重置。
+
+开发与部署参见 [运行与部署说明](deploy/README.md)。前端位于 `web/`，HTTP 服务与独立 Worker 管理进程位于 `server/`，研究引擎复用 `deep_research/`。账号通过服务器命令创建，开发与验证记录见 [实施记录](docs/design/wenli-implementation.md)。
 
 ## 项目简介
 
