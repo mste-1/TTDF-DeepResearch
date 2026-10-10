@@ -39,6 +39,7 @@ from deep_research.utils import get_today_str
 from deep_research.tools import _think_tool, _refine_draft_report_tool
 from deep_research import logging as dr_logging
 from deep_research import iteration_config
+from deep_research.observability import observe, observed_research
 
 logger = dr_logging.get_logger(__name__)
 
@@ -182,6 +183,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
 
     # 如果超过则退出
     if exceeded_iterations or no_tool_calls or research_complete:
+        observe("supervisor.finished", reason=("iteration_limit" if exceeded_iterations else "no_tool_calls" if no_tool_calls else "research_complete"))
         # 如果满足退出条件，我们会准备最终的、经过整理的notes。
         # 优先使用结构化的知识库，但如果知识库为空，则使用raw notes。
         final_notes = get_notes_from_tool_calls(state.get("supervisor_messages", []))
@@ -242,7 +244,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
             if conduct_research_calls:
                 # 并行启动多个 research agents
                 coros = [
-                    researcher_agent.ainvoke({
+                    observed_research(tool_call, researcher_agent.ainvoke, {
                         "researcher_messages": [
                             HumanMessage(content=tool_call["args"]["research_topic"])
                         ],
@@ -276,6 +278,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
 
             # 开始调用大模型结合已有信息修正调研报告
             for tool_call in refine_report_calls: 
+                observe("refinement.started", tool_call_id=tool_call["id"])
                 findings = "\n".join(get_notes_from_tool_calls(state.get("supervisor_messages", [])))
 
                 new_draft = _refine_draft_report_tool.invoke({
@@ -290,6 +293,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
                     or not new_draft.strip()
                     or new_draft.strip() == state.get("draft_report", "").strip()
                 ):
+                    observe("refinement.unchanged", tool_call_id=tool_call["id"])
                     tool_messages.append(ToolMessage(
                         content="Draft unchanged. Pending critiques were retained; please retry refinement.",
                         name=tool_call["name"],
@@ -297,6 +301,8 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
                     ))
                     continue
                 
+                observe("refinement.candidate", tool_call_id=tool_call["id"], markdown=new_draft)
+                observe("evaluation.started", tool_call_id=tool_call["id"])
                 # 执行Critical Step：Self-Evolution的评估
                 eval_result = evaluate_draft_quality(
                         research_brief=state.get("research_brief", ""),
@@ -312,6 +318,12 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
 
                 # 评估报告质量得分：(综合得分+准确率得分+一致性得分) / 3
                 avg_score = (eval_result.comprehensiveness_score + eval_result.accuracy_score + eval_result.coherence_score) / 3
+                observe("evaluation.completed", tool_call_id=tool_call["id"], scores={
+                    "comprehensiveness": eval_result.comprehensiveness_score,
+                    "accuracy": eval_result.accuracy_score,
+                    "coherence": eval_result.coherence_score,
+                    "average": avg_score,
+                }, feedback=eval_result.reason)
                 
                 # 把质量得分追加到tool message, 供Supervisor Agent参考
                 tool_messages.append(ToolMessage(
@@ -323,6 +335,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
                 draft_report = new_draft
                 updates["draft_report"] = draft_report
                 updates["pending_critiques"] = []
+                observe("refinement.accepted", tool_call_id=tool_call["id"], markdown=new_draft)
                 
                 # 记录报告质量评分的记录，如果分数低于 min_need_repair_score，把repaire标志位置位true
                 updates["quality_history"] = [QualityMetric(
@@ -344,6 +357,7 @@ async def supervisor_tools(state: SupervisorState) -> Command[Literal["superviso
             return Command(goto=next_step, update=updates)
 
         except Exception as e:
+            observe("supervisor.error", error_type=type(e).__name__)
             return Command(
                 goto=END,
                 update={

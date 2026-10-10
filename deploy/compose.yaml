@@ -1,0 +1,51 @@
+name: wenli
+x-service: &service
+  image: wenli-backend:${WENLI_VERSION:-local}
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  init: true
+  restart: unless-stopped
+  environment: &environment
+    WENLI_DATA_DIR: /data
+    WENLI_ALLOWED_ORIGINS: ${WENLI_ALLOWED_ORIGINS:-http://localhost:8080}
+    WENLI_SECURE_COOKIES: ${WENLI_SECURE_COOKIES:-false}
+    WENLI_REQUIRE_SAFE_SQLITE: "true"
+    CONFIG_PATH: /run/secrets/config.yml
+    STAGE: prod
+  volumes:
+    - wenli-data:/data
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  api:
+    <<: *service
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *service
+    command: [python, -m, server.worker]
+    stop_grace_period: 30s
+    volumes:
+      - wenli-data:/data
+      - ./secrets:/run/secrets:ro
+  web:
+    image: wenli-web:${WENLI_VERSION:-local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  wenli-data:

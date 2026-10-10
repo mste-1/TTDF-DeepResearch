@@ -1,5 +1,7 @@
 # Deep Research Agent
 
+网页版本 **问砺 · 深度研究智能体**：参见 [运行与部署说明](deploy/README.md)。前端位于 `web/`，HTTP 服务与独立 Worker 管理进程位于 `server/`，研究引擎继续复用 `deep_research/`。账号通过服务器命令创建，支持并发研究、过程协作图、终止并保留成果、报告阅读和 Markdown 下载。开发验证与尚待服务器验收的事项见 [实施记录](docs/design/wenli-implementation.md)。
+
 ## 项目简介
 
 本项目基于 LangGraph 和 LangChain 构建多智能体深度研究工作流。用户输入研究问题后，系统生成研究简报和报告初稿，由 Supervisor 拆分研究任务、协调多个 Research Agent 进行网络检索与资料整理，最后汇总研究结果并生成报告。

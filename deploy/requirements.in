@@ -1,0 +1,17 @@
+# Runtime dependencies only. Notebook requirements.txt remains unchanged.
+# Regenerate: uv pip compile deploy/requirements.in --universal --python-version 3.14
+#             --generate-hashes -o deploy/requirements.lock
+-r ../server/requirements.txt
+langgraph==1.2.12
+langchain==1.4.2
+langchain-core==1.6.5
+langchain-openai==1.6.6
+langchain-deepseek==1.1.1
+langchain-anthropic==1.7.4
+langchain-azure-ai==1.2.10
+pydantic==2.13.5
+tavily-python==0.8.0
+PyYAML==6.0.3
+requests==2.33.0
+python-dotenv==1.2.2
+rich==15.0.0

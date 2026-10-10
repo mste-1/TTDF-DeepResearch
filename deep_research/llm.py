@@ -13,6 +13,7 @@ from langchain_deepseek import ChatDeepSeek
 
 from deep_research.utils import load_config
 from deep_research import logging as dr_logging
+from deep_research.observability import observe
 
 
 # 初始化logger
@@ -51,14 +52,17 @@ def get_llm_response_text(response: Any, *, context: str = "llm") -> str:
     """
     content = getattr(response, "content", response)
     if isinstance(content, str) and content.strip():
+        observe("internal.text_origin", context=context, origin="content", model_call_id=getattr(response, "id", None))
         return content
 
     additional_kwargs = getattr(response, "additional_kwargs", {}) or {}
     reasoning_content = additional_kwargs.get("reasoning_content", "")
     if isinstance(reasoning_content, str) and reasoning_content.strip():
+        observe("internal.text_origin", context=context, origin="reasoning_fallback", model_call_id=getattr(response, "id", None))
         return reasoning_content
 
     logger.error("[%s] LLM response content and reasoning_content are empty", context)
+    observe("internal.text_origin", context=context, origin="empty", model_call_id=getattr(response, "id", None))
     return ""
 
 

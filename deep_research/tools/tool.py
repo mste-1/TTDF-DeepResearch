@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool, InjectedToolArg
 
 from deep_research import logging as dr_logging
+from deep_research.observability import observe, observation_scope
 from deep_research.utils import get_today_str
 from deep_research.llm import get_chat_model, get_llm_response_text
 from deep_research.states import Summary
@@ -154,6 +155,8 @@ def tavily_search_multiple(
             raise
 
         search_docs.append(result)
+        for source in result.get("results", []):
+            observe("source.discovered", query=query, url=source.get("url", ""), title=source.get("title", ""))
 
     return search_docs
 
@@ -194,6 +197,7 @@ def summarize_webpage_content(webpage_content: str) -> str:
 
     except Exception as e:
         logger.error(f"Failed to summarize webpage: {str(e)}")
+        observe("summary.degraded")
         # 如果报错，就取文档前1000字
         return webpage_content[:DEFAULT_MAX_CONTEXT] + "..."
 
@@ -235,12 +239,14 @@ def process_search_results(unique_results: dict) -> dict:
             content = result['content']
         else:
             # Summarize raw content for better processing
-            content = summarize_webpage_content(result['raw_content'][:MAX_CONTEXT_LENGTH])
+            with observation_scope(source_url=url):
+                content = summarize_webpage_content(result['raw_content'][:MAX_CONTEXT_LENGTH])
 
         summarized_results[url] = {
             'title': result['title'],
             'content': content
         }
+        observe("source.summary", url=url, title=result['title'], markdown=content)
 
     return summarized_results
 
@@ -372,6 +378,7 @@ def refine_draft_report(research_brief: Annotated[str, InjectedToolArg],
 
     # 精修独有的兜底：模型正文和推理内容都为空时，保留原草稿。
     content = get_llm_response_text(draft_report_obj, context="refine_draft_report")
+    observe("internal.refinement_output", kept_original=not bool(content))
     return content or draft_report
 
 

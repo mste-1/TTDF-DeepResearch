@@ -4,3 +4,16 @@
 
 # Python cache directories at any depth
 __pycache__/
+
+# Web build output and local service state
+/web/node_modules/
+/web/dist/
+/web/test-results/
+/web/playwright-report/
+/.runtime/
+/data/
+/deploy/.env
+/deploy/secrets/
+/deploy/tls/
+.pytest_cache/
+*.pyc

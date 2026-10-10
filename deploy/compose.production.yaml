@@ -1,0 +1,16 @@
+services:
+  api:
+    environment:
+      WENLI_ALLOWED_ORIGINS: ${WENLI_ALLOWED_ORIGINS:?Set the exact https website origin in deploy/.env}
+      WENLI_SECURE_COOKIES: "true"
+  worker:
+    environment:
+      WENLI_ALLOWED_ORIGINS: ${WENLI_ALLOWED_ORIGINS:?Set the exact https website origin in deploy/.env}
+      WENLI_SECURE_COOKIES: "true"
+  web:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.production.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./tls:/etc/nginx/tls:ro
