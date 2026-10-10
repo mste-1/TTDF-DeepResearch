@@ -9,6 +9,7 @@ from langchain.chat_models import init_chat_model
 from deep_research.llm import get_chat_model
 from deep_research.states import EvaluationResult 
 from deep_research.prompts import DRAFT_EVALUATOR_PROMPT
+from deep_research.utils import get_today_str
 
 
 # 初始化Judge Model 
@@ -24,7 +25,8 @@ def evaluate_draft_quality(research_brief: str, draft_report: str) -> Evaluation
     # 组装prompt
     eval_prompt = DRAFT_EVALUATOR_PROMPT.format(
             research_brief = research_brief,
-            draft_report = draft_report
+            draft_report = draft_report,
+            date = get_today_str()
     )
 
     # 获取结构化的分数结果（多维度打分）

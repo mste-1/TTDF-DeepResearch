@@ -11,6 +11,7 @@ from deep_research.llm import get_chat_model, get_llm_response_text
 from deep_research.states import SupervisorState, Critique
 from deep_research import logging as dr_logging
 from deep_research import iteration_config
+from deep_research.utils import get_today_str
 
 logger = dr_logging.get_logger(__name__)
 
@@ -37,7 +38,7 @@ async def red_team_node(state: SupervisorState) -> dict:
         return {}
 
     # 组装prompt
-    prompt = RED_TEAM_PROMPT.format(research_brief=research_brief, draft_report=draft) 
+    prompt = RED_TEAM_PROMPT.format(research_brief=research_brief, draft_report=draft, date=get_today_str())
 
     # 调用红队大模型获得对抗建议
     response = await red_team_model.ainvoke([HumanMessage(content=prompt)])

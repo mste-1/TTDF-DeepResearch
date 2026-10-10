@@ -94,6 +94,8 @@ LANGCHAIN_PROJECT=YOUR_LANGSMITH_PROJECT_NAME
 
 ## 迭代次数与搜索预算
 
+各 Agent 在组装模型请求时通过 `deep_research.utils.get_today_str()` 获取当前日期，统一采用北京时间（UTC+8），不依赖服务器或容器默认时区。研究简报、初稿、研究统筹、专题研究、研究压缩、网页摘要、报告修订、红队、质量评估及最终报告均包含日期上下文；辅助消息使用同一请求中系统提示提供的日期。日期用于时效判断，不能替代来源核验。
+
 统一在 [deep_research/iteration_config.py](deep_research/iteration_config.py) 修改，修改后重启 Python 进程或 Notebook 内核并重新运行。
 
 | 配置常量 | 默认值 | 作用 |

@@ -6,15 +6,15 @@
 import os
 import yaml
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 
 # ===== UTILITY FUNCTIONS =====
 
 def get_today_str() -> str:
-    """获取今天的日期并返回格式化的字符串"""
-    today = datetime.now()
-    return f"{today:%a %b} {today.day}, {today:%Y}"
+    """按北京时间生成调用时的日期，不依赖主机或容器默认时区。"""
+    today = datetime.now(timezone(timedelta(hours=8)))
+    return f"{today:%a %b} {today.day}, {today:%Y}（北京时间 UTC+8）"
 
 def get_current_dir() -> Path:
     """获取当前的目录"""
